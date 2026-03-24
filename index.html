@@ -41,6 +41,8 @@
   <button id="startBtn">Start</button>
   <button id="stopBtn" disabled>Stop</button>
 
+
+  <h1>Console Log</h1>
   <div id="log"></div>
 
   <script>
@@ -180,5 +182,37 @@
     startBtn.addEventListener("click", startVoice);
     stopBtn.addEventListener("click", stopVoice);
   </script>
+
+
+
+
+
+
+
+
+
+  <h1>Read JSON</h1>
+  <pre id="output">Loading...</pre>
+
+  <script>
+    async function loadJSON() {
+      try {
+        const response = await fetch('./instruct.json');
+        if (!response.ok) {
+          throw new Error(`HTTP error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        document.getElementById('output').textContent =
+          JSON.stringify(data, null, 2);
+      } catch (error) {
+        document.getElementById('output').textContent =
+          'Error: ' + error.message;
+      }
+    }
+
+    loadJSON();
+  </script>
+  
 </body>
 </html>

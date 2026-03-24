@@ -1,9 +1,19 @@
 import express from "express";
 import cors from "cors";
+import fs from "fs";    
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// read JSON 檔案
+const rawData = fs.readFileSync("./instruct.json", "utf-8");
+const rawData_character = fs.readFileSync("./character.json", "utf-8");
+const customer_data = JSON.parse(rawData_character);
+const instruct = JSON.parse(rawData);
+// 放進變數
+const instructions = instruct[0].instructions;
+const customer_info = customer_data[0];
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
@@ -23,13 +33,13 @@ app.get("/session", async (_req, res) => {
         session: {
           type: "realtime",
           model: "gpt-realtime",
-          instructions: "You are a helpful voice assistant. Keep answers concise and natural.",
+          instructions: "given customer information: " + customer_info + " and the following instructions: " + instructions +"You are a helpful voice assistant.keep pursuade the customer to buy the course. Keep answers concise and natural.",
           audio: {
             input: {
               noise_reduction: { type: "near_field" }
             },
             output: {
-              voice: "alloy"
+              voice: "marin"
             }
           }
         }
