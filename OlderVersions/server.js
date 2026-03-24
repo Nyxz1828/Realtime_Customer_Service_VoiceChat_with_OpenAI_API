@@ -23,7 +23,7 @@ app.get("/session", async (_req, res) => {
         session: {
           type: "realtime",
           model: "gpt-realtime",
-          instructions: "You are a helpful voice assistant. Keep answers concise and natural. And reply in traditional Chinese. ",
+          instructions: "You are a helpful voice assistant. Keep answers concise and natural.  ",
           audio: {
             input: {
               noise_reduction: { type: "near_field" }
