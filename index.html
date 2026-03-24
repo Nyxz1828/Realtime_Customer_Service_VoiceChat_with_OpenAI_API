@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Voice to Voice Demo</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+    }
+
+    button {
+      margin-right: 10px;
+      padding: 10px 16px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    #log {
+      margin-top: 20px;
+      background: #f4f4f4;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 12px;
+      min-height: 200px;
+      white-space: pre-wrap;
+      overflow-wrap: break-word;
+    }
+  </style>
+</head>
+<body>
+  <h1>Voice to Voice Demo</h1>
+
+  <button id="startBtn">Start</button>
+  <button id="stopBtn" disabled>Stop</button>
+
+  <div id="log"></div>
+
+  <script>
+    const log = document.getElementById("log");
+    const startBtn = document.getElementById("startBtn");
+    const stopBtn = document.getElementById("stopBtn");
+
+    let pc = null;
+    let localStream = null;
+    let remoteAudio = null;
+    let dc = null;
+
+    function write(message) {
+      log.textContent += message + "\n";
+    }
+
+    async function startVoice() {
+      startBtn.disabled = true;
+
+      try {
+        write("Fetching client secret...");
+        const tokenResp = await fetch("http://localhost:3000/session");
+        const tokenData = await tokenResp.json();
+
+        if (!tokenResp.ok) {
+          throw new Error("Session request failed: " + JSON.stringify(tokenData, null, 2));
+        }
+
+        if (!tokenData.value) {
+          throw new Error("Missing ephemeral key in response: " + JSON.stringify(tokenData, null, 2));
+        }
+
+        const EPHEMERAL_KEY = tokenData.value;
+
+        write("Opening microphone...");
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+        pc = new RTCPeerConnection();
+
+        remoteAudio = document.createElement("audio");
+        remoteAudio.autoplay = true;
+
+        pc.ontrack = (event) => {
+          remoteAudio.srcObject = event.streams[0];
+          write("Remote audio connected.");
+        };
+
+        for (const track of localStream.getTracks()) {
+          pc.addTrack(track, localStream);
+        }
+
+        dc = pc.createDataChannel("oai-events");
+
+        dc.onopen = () => {
+          write("Data channel open.");
+        };
+
+        dc.onmessage = (event) => {
+          try {
+            const msg = JSON.parse(event.data);
+            write("EVENT: " + msg.type);
+
+            if (msg.type === "response.audio_transcript.done") {
+              write("Assistant transcript: " + msg.transcript);
+            }
+
+            if (msg.type === "conversation.item.input_audio_transcription.completed") {
+              write("User transcript: " + msg.transcript);
+            }
+          } catch {
+            write("RAW: " + event.data);
+          }
+        };
+
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+
+        write("Sending SDP offer to OpenAI (GA WebRTC)...");
+        const sdpResponse = await fetch("https://api.openai.com/v1/realtime/calls", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${EPHEMERAL_KEY}`,
+            "Content-Type": "application/sdp"
+          },
+          body: offer.sdp
+        });
+
+        const answerSdp = await sdpResponse.text();
+
+        if (!sdpResponse.ok) {
+          throw new Error(answerSdp);
+        }
+
+        await pc.setRemoteDescription({
+          type: "answer",
+          sdp: answerSdp
+        });
+
+        write("Voice session started.");
+        stopBtn.disabled = false;
+      } catch (err) {
+        console.error(err);
+        write("ERROR: " + err.message);
+        startBtn.disabled = false;
+      }
+    }
+
+    function stopVoice() {
+      if (dc) {
+        dc.close();
+        dc = null;
+      }
+
+      if (pc) {
+        pc.getSenders().forEach(sender => {
+          if (sender.track) sender.track.stop();
+        });
+        pc.close();
+        pc = null;
+      }
+
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+      }
+
+      if (remoteAudio) {
+        remoteAudio.srcObject = null;
+        remoteAudio = null;
+      }
+
+      write("Voice session stopped.");
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+    }
+
+    startBtn.addEventListener("click", startVoice);
+    stopBtn.addEventListener("click", stopVoice);
+  </script>
+</body>
+</html>
