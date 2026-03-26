@@ -8,12 +8,51 @@ app.use(express.json());
 
 // read JSON 檔案
 const rawData = fs.readFileSync("./instruct.json", "utf-8");
-const rawData_character = fs.readFileSync("./character.json", "utf-8");
-const customer_data = JSON.parse(rawData_character);
-const instruct = JSON.parse(rawData);
+const instructData  = JSON.parse(rawData);
+
 // 放進變數
-const instructions = instruct[0].instructions;
-const customer_info = customer_data[0];
+const instruct  = instructData[0];
+const instructionPrompt = `
+你現在的身份設定如下：
+
+職位：${instruct.Role}
+口語風格：${instruct.Slang}
+語氣：${instruct.Tone}
+表達方式：${instruct.Style}
+語音口音：${instruct.Voice}
+
+公司名稱：${instruct.Company}
+客戶名稱：${instruct.Customer_name}
+客戶接觸來源：${instruct.Exposure}
+目前活動：${instruct.Activity}
+
+補充內容：${instruct.Content}
+
+成交條件：${instruct.Agreee_condition}
+結束條件：${instruct.Terminate_condition}
+結尾用語：${instruct.Ending}
+使用 ${instruct.Slang}、${instruct.Tone}、${instruct.Style} 的方式與客戶對話。
+
+第一句話為："您好，我是來自${instruct.Company}的客服人員。請問您是${instruct.Customer_name}嗎？
+wait for reply and then ask 我在${instruct.Exposure}看到您之前有參加/瀏覽過我們的${instruct.Activity}。請問您有興趣了解更多嗎？"
+
+do not promote the course.
+if:
+當客戶表達明確拒絕，請依照結束條件結束對話。
+else:
+最後結尾請使用：「${instruct.Ending}」
+`.trim();
+
+
+
+console.log("Instruction Prompt:", instructionPrompt);
+
+
+
+
+
+
+
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
@@ -33,13 +72,13 @@ app.get("/session", async (_req, res) => {
         session: {
           type: "realtime",
           model: "gpt-realtime",
-          instructions: "given customer information: " + customer_info + " and the following instructions: " + instructions +"You are a helpful voice assistant.keep pursuade the customer to buy the course. Keep answers concise and natural.",
+          instructions: instructionPrompt,
           audio: {
             input: {
               noise_reduction: { type: "near_field" }
             },
             output: {
-              voice: "marin"
+              voice: instruct.Voice || "marin",
             }
           }
         }
