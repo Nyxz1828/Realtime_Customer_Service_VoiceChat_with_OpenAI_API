@@ -4,51 +4,118 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Voice to Voice Demo</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 800px;
-      margin: 40px auto;
-      padding: 20px;
-    }
 
-    h1 {
-      margin-bottom: 20px;
-    }
-
-    button {
-      margin-right: 10px;
-      padding: 10px 16px;
-      font-size: 16px;
-      cursor: pointer;
-    }
-
-    #log {
-      margin-top: 20px;
-      background: #f4f4f4;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      padding: 12px;
-      min-height: 200px;
-      white-space: pre-wrap;
-      overflow-wrap: break-word;
-    }
-  </style>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-  <h1>Voice to Voice Demo</h1>
-
-  <button id="startBtn">Start</button>
-  <button id="stopBtn" disabled>Stop</button>
 
 
-  <h1>Console Log</h1>
-  <div id="log"></div>
+<body class="min-h-screen bg-zinc-950 text-zinc-100 antialiased">
+  <div class="mx-auto max-w-7xl px-6 py-8">
+    
+    <!-- Header -->
+    <header class="mb-8 flex flex-col gap-5 border-b border-zinc-800 pb-6 lg:flex-row lg:items-center lg:justify-between">
+      <div>
+        <p class="mb-2 text-xs uppercase tracking-[0.25em] text-zinc-500">Realtime Demo</p>
+        <h1 class="text-3xl font-semibold tracking-tight text-zinc-100">Voice to Voice Demo</h1>
+        <p class="mt-2 text-sm text-zinc-400">
+          Live session interface with transcript, console log, and prompt panel.
+        </p>
+                <!-- Start / Stop -->
+        <div class="flex items-center gap-3">
+          <button
+            id="startBtn"
+            class="flex h-14 w-14 items-center justify-center rounded-full border border-zinc-700 bg-zinc-100 text-sm font-semibold text-zinc-950 shadow-lg shadow-black/30 transition hover:scale-105 hover:bg-white active:scale-95"
+            title="Start"
+          >
+            Start
+          </button>
 
+          <button
+            id="stopBtn"
+            disabled
+            class="flex h-14 w-14 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900 text-sm font-semibold text-zinc-500 shadow-lg shadow-black/20 transition disabled:cursor-not-allowed disabled:opacity-60"
+            title="Stop"
+          >
+            Stop
+          </button>
+        </div>
+      </div>
+      
+
+      <div class="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+        <!-- Language Switch -->
+        <div class="flex items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900/80 p-2 shadow-sm shadow-black/20">
+          <span class="px-2 text-xs font-medium uppercase tracking-widest text-zinc-500">Language</span>
+          <button id="lang-en" class="rounded-xl border border-zinc-700 bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-900 transition hover:bg-white">
+            EN
+          </button>
+          <button id="lang-zh" class="rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-300 transition hover:border-zinc-600 hover:bg-zinc-800">
+            中文
+          </button>
+        </div>
+
+
+      </div>
+    </header>
+
+    <!-- Main Panels -->
+    <section class="grid grid-cols-1 gap-6 lg:grid-cols-12">
+      
+      <!-- Chat Log - smaller -->
+      <div class="lg:col-span-5">
+        <div class="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/80 shadow-2xl shadow-black/20">
+          <div class="border-b border-zinc-800 px-5 py-4">
+            <h2 class="text-lg font-semibold text-zinc-100">Chat Log</h2>
+            <p class="mt-1 text-sm text-zinc-500">Conversation transcript and assistant messages</p>
+          </div>
+
+          <div
+            id="User_transcript"
+            class="min-h-[360px] max-h-[520px] overflow-y-auto px-5 py-4 text-sm leading-7 text-zinc-300 whitespace-pre-wrap break-words"
+          ></div>
+        </div>
+      </div>
+
+      <!-- Console Log - bigger -->
+      <div class="lg:col-span-7">
+        <div class="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/80 shadow-2xl shadow-black/20">
+          <div class="border-b border-zinc-800 px-5 py-4">
+            <h2 class="text-lg font-semibold text-zinc-100">Console Log</h2>
+            <p class="mt-1 text-sm text-zinc-500">Realtime events, state changes, and debug output</p>
+          </div>
+
+          <div
+            id="log"
+            class="min-h-[360px] max-h-[520px] overflow-y-auto px-5 py-4 font-mono text-sm leading-7 text-zinc-400 whitespace-pre-wrap break-words"
+          ></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Prompt -->
+    <section class="mt-6">
+      <div class="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/80 shadow-2xl shadow-black/20">
+        <div class="border-b border-zinc-800 px-5 py-4">
+          <h2 class="text-lg font-semibold text-zinc-100">Prompt</h2>
+          <p class="mt-1 text-sm text-zinc-500">Current instruction payload / loaded prompt</p>
+        </div>
+
+        <pre
+          id="output"
+          class="min-h-[220px] overflow-x-auto px-5 py-4 font-mono text-sm leading-7 text-zinc-300 whitespace-pre-wrap break-words"
+        >Loading...</pre>
+      </div>
+    </section>
+
+  </div>
+
+
+<!-- for loading Logs -->
   <script>
     const log = document.getElementById("log");
     const startBtn = document.getElementById("startBtn");
     const stopBtn = document.getElementById("stopBtn");
+    const USRER_TRANSCRIPT = document.getElementById("User_transcript");
 
     let pc = null;
     let localStream = null;
@@ -57,6 +124,10 @@
 
     function write(message) {
       log.textContent += message + "\n";
+
+      if (message.includes("transcript:") || message.includes("Assistant transcript:")) {
+        USRER_TRANSCRIPT.textContent += message + "\n";
+      }
     }
 
     async function startVoice() {
@@ -66,6 +137,8 @@
         write("Fetching client secret...");
         const tokenResp = await fetch("http://localhost:3000/session");
         const tokenData = await tokenResp.json();
+        const EPHEMERAL_KEY = tokenData.value;
+
 
         if (!tokenResp.ok) {
           throw new Error("Session request failed: " + JSON.stringify(tokenData, null, 2));
@@ -75,7 +148,6 @@
           throw new Error("Missing ephemeral key in response: " + JSON.stringify(tokenData, null, 2));
         }
 
-        const EPHEMERAL_KEY = tokenData.value;
 
         write("Opening microphone...");
         localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -184,16 +256,29 @@
   </script>
 
 
+<!-- for language selection -->
+<script>
+  const langButtons = document.querySelectorAll("#lang-en, #lang-zh");
+
+  langButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      langButtons.forEach((b) => {
+        b.className =
+          "rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-300 transition hover:border-zinc-600 hover:bg-zinc-800";
+      });
+
+      btn.className =
+        "rounded-xl border border-zinc-700 bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-900 transition hover:bg-white";
+    });
+  });
+</script>
 
 
 
 
 
-
-
-  <h1>Read JSON</h1>
-  <code><pre id="output">Loading...</pre></code>
-
+ 
+<!-- for loading JSON -->
   <script>
     async function loadJSON() {
       try {
